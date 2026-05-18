@@ -847,11 +847,11 @@ function noohubIsCommandButtonDevice(d) {
 }
 
 function noohubShouldUseSwitchCardForLocalState(d) {
-    return !!(d && d.id && d.retrievable !== true);
+    return !!(d && d.id && d.retrievable !== true && !noohubIsCommandButtonDevice(d));
 }
 
 function noohubShouldUseOnButtonControl(d) {
-    return noohubIsCommandButtonDevice(d) && !noohubShouldUseSwitchCardForLocalState(d);
+    return noohubIsCommandButtonDevice(d);
 }
 
 function noohubDeviceTextForTypeDetect(d) {
