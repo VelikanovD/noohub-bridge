@@ -1,72 +1,74 @@
-# NooHub Bridge for Wiren Board and SprutHub
+# NooHub Bridge для Wiren Board и SprutHub
 
-Bridge for integrating NooHub / nooLite devices with Wiren Board virtual devices and SprutHub over a separate MQTT broker.
+Мост для интеграции устройств NooHub / nooLite с виртуальными устройствами Wiren Board и SprutHub через отдельный MQTT-брокер.
 
-Current package: `v11`.
+Текущая версия пакета: `v11`.
 
-## Features
+## Возможности
 
-- Creates Wiren Board virtual devices for NooHub devices.
-- Sends commands to NooHub through the local HTTP API.
-- Polls device state through `get_state`.
-- Saves `Polling Enabled` and `Poll Interval, sec` in `/var/lib/wirenboard/noohub_bridge_config.json`.
-- Supports polling interval from 1 to 180 seconds.
-- Includes protection against too frequent polling: if polling cycles are slower than the configured interval or repeatedly overlap, the bridge raises the interval to 5 seconds and saves it.
-- Mirrors NooHub MQTT topics to a separate Mosquitto broker for SprutHub.
-- Includes SprutHub custom templates for switch, dimmer, and impulse devices.
-- Includes a separate optional cleanup script for old temporary diagnostics from v10.
+- Создает виртуальные устройства NooHub в Wiren Board.
+- Отправляет команды в NooHub через локальный HTTP API.
+- Получает обратную связь через `get_state`.
+- Сохраняет `Polling Enabled` и `Poll Interval, sec` в `/var/lib/wirenboard/noohub_bridge_config.json`.
+- Поддерживает интервал polling от 1 до 180 секунд.
+- Защищает Wiren Board от слишком частого polling: если цикл опроса не успевает завершаться или часто накладывается сам на себя, bridge автоматически поднимает интервал до 5 секунд и сохраняет настройку.
+- Зеркалит MQTT-топики NooHub-устройств в отдельный Mosquitto-брокер для SprutHub.
+- Содержит пользовательские шаблоны SprutHub для switch, dimmer и impulse.
+- Содержит отдельный необязательный скрипт очистки старой временной диагностики из v10.
 
-## Files
+## Состав
 
-- `noohub_bridge.js` - main Wiren Board rules file.
-- `install_noohub_bridge.sh` - deployment script for Wiren Board.
-- `noohub_delete_virtual_devices.sh` - helper for removing NooHub virtual devices.
-- `noohub_resync_selected_devices.sh` - helper for selective CH resync.
-- `noohub_spruthub_mqtt_proxy.sh` - MQTT proxy for SprutHub.
-- `noohub_spruthub_mosquitto.*` - separate Mosquitto service for SprutHub.
-- `noohub_spruthub_mqtt_proxy.*` - proxy service config.
-- `noohub_cleanup_diagnostics.sh` - optional cleanup for old v10 diagnostics.
-- `Custom/*.json` - SprutHub custom templates.
+- `noohub_bridge.js` - основной файл правил Wiren Board.
+- `install_noohub_bridge.sh` - скрипт развертывания на Wiren Board.
+- `noohub_delete_virtual_devices.sh` - helper для удаления виртуальных устройств NooHub.
+- `noohub_resync_selected_devices.sh` - helper для выборочного Resync CH.
+- `noohub_spruthub_mqtt_proxy.sh` - MQTT-прокси для SprutHub.
+- `noohub_spruthub_mosquitto.*` - отдельный Mosquitto-сервис для SprutHub.
+- `noohub_spruthub_mqtt_proxy.*` - конфигурация сервиса MQTT-прокси.
+- `noohub_cleanup_diagnostics.sh` - необязательная очистка старой диагностики v10.
+- `Custom/*.json` - пользовательские шаблоны SprutHub.
 
-## Install On Wiren Board
+## Установка на Wiren Board
 
-Copy this folder to Wiren Board, then run:
+Скопируйте папку проекта на Wiren Board и выполните:
 
 ```sh
 sh install_noohub_bridge.sh
 ```
 
-The installer:
+Скрипт установки:
 
-- backs up existing `/etc/wb-rules/noohub_bridge.js`;
-- installs the main bridge file;
-- installs required helper scripts;
-- installs and restarts the separate Mosquitto service for SprutHub;
-- installs and restarts the MQTT proxy service;
-- restarts `wb-rules`.
+- делает резервную копию текущего `/etc/wb-rules/noohub_bridge.js`;
+- устанавливает основной bridge-файл;
+- устанавливает необходимые helper-скрипты;
+- устанавливает и перезапускает отдельный Mosquitto-сервис для SprutHub;
+- устанавливает и перезапускает MQTT-прокси;
+- перезапускает `wb-rules`.
 
-The installer does not install or remove `tcpdump`.
+Скрипт установки не устанавливает и не удаляет `tcpdump`.
 
-## Optional Cleanup
+## Очистка старой диагностики
 
-If v10 traffic diagnostics were installed earlier, cleanup can be run manually:
+Если раньше была установлена временная диагностика трафика из v10, ее можно удалить вручную:
 
 ```sh
 sh noohub_cleanup_diagnostics.sh
 ```
 
-This removes old diagnostics helper scripts, temporary capture logs, and `tcpdump` if it is installed.
+Скрипт удаляет старые helper-скрипты диагностики, временные логи захвата и пакет `tcpdump`, если он установлен.
 
 ## SprutHub
 
-Upload templates from `Custom/` through the SprutHub web interface:
+Загрузите шаблоны из папки `Custom/` через веб-интерфейс SprutHub:
 
 - `NooHub-Switch.json`
 - `NooHub-Dimmer.json`
 - `NooHub-Impulse.json`
 
-Connect SprutHub MQTT controller to the Wiren Board IP and the configured bridge port. Default port: `45883`.
+В MQTT-контроллере SprutHub укажите IP-адрес Wiren Board и порт отдельного брокера. Порт по умолчанию: `45883`.
 
-## Notes
+## Важное про polling
 
-NooHub currently exposes state through HTTP `get_state`, so this bridge uses polling for feedback. For stability, start with a polling interval of 5-30 seconds. One-second polling is available for tests and small installations, with automatic protection enabled.
+На текущий момент NooHub отдает состояние через HTTP `get_state`, поэтому bridge использует polling для обратной связи.
+
+Для стабильной работы лучше начинать с интервала 5-30 секунд. Интервал 1 секунда доступен для тестов и небольших установок, но при признаках перегрузки bridge сам поднимет интервал до 5 секунд.
