@@ -1,8 +1,28 @@
 # NooHub Bridge для Wiren Board и SprutHub
 
-Мост для интеграции устройств NooHub / nooLite с виртуальными устройствами Wiren Board и SprutHub через отдельный MQTT-брокер.
+Мост для маршрута `NooHub -> noohub-bridge на Wiren Board -> отдельный MQTT-брокер -> SprutHub`.
+
+Идея проекта: NooHub остается шлюзом к устройствам nooLite, Wiren Board хранит карточки, состояние и правила управления, а SprutHub получает эти устройства через отдельный MQTT-порт Wiren Board.
 
 Текущая версия пакета: `v12`.
+
+## Архитектура
+
+```text
+nooLite устройства
+        |
+      NooHub
+        |
+локальный HTTP API
+        |
+noohub-bridge на Wiren Board
+        |
+виртуальные устройства Wiren Board
+        |
+отдельный MQTT-брокер Wiren Board :45883
+        |
+      SprutHub
+```
 
 ## Возможности
 
