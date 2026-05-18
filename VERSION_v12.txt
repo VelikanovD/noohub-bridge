@@ -1,4 +1,4 @@
-NooHub Bridge package v12
+NooHub to Wiren Board to SprutHub Bridge package v12
 
 Дата: 2026-05-17
 
