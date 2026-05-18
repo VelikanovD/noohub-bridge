@@ -1,0 +1,38 @@
+{
+  "name": "Диммер NooHub",
+  "manufacturer": "NooHub",
+  "model": "Dimmer",
+  "modelIds": [
+    "/devices/(noohub_.+)/meta/spruthub_template/dimmer"
+  ],
+  "services": [
+    {
+      "name": "Диммер",
+      "type": "Lightbulb",
+      "characteristics": [
+        {
+          "type": "On",
+          "link": [
+            {
+              "type": "Boolean",
+              "topicGet": "/devices/(1)/controls/on",
+              "topicSet": "/devices/(1)/controls/on/on"
+            }
+          ]
+        },
+        {
+          "type": "Brightness",
+          "link": [
+            {
+              "type": "Integer",
+              "topicGet": "/devices/(1)/controls/brightness",
+              "topicSet": "/devices/(1)/controls/brightness/on",
+              "minValue": 0,
+              "maxValue": 100
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

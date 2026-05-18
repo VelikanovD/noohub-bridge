@@ -1,0 +1,26 @@
+{
+  "name": "Выключатель NooHub",
+  "manufacturer": "NooHub",
+  "model": "Switch",
+  "modelIds": [
+    "/devices/(noohub_.+)/meta/spruthub_template/switch"
+  ],
+  "services": [
+    {
+      "name": "Выключатель",
+      "type": "Switch",
+      "characteristics": [
+        {
+          "type": "On",
+          "link": [
+            {
+              "type": "Boolean",
+              "topicGet": "/devices/(1)/controls/on",
+              "topicSet": "/devices/(1)/controls/on/on"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

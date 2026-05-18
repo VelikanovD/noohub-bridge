@@ -1,0 +1,26 @@
+{
+  "name": "Открыть NooHub",
+  "manufacturer": "NooHub",
+  "model": "Button",
+  "modelIds": [
+    "/devices/(noohub_.+)/meta/spruthub_template/impulse"
+  ],
+  "services": [
+    {
+      "name": "Открыть",
+      "type": "Switch",
+      "characteristics": [
+        {
+          "type": "On",
+          "link": [
+            {
+              "type": "Boolean",
+              "topicGet": "/devices/(1)/controls/on",
+              "topicSet": "/devices/(1)/controls/on/on"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

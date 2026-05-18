@@ -1,0 +1,12 @@
+[Unit]
+Description=NooHub-only Mosquitto broker for SprutHub
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/mosquitto -c /etc/mosquitto/noohub_spruthub_mosquitto.conf
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

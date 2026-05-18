@@ -1,0 +1,14 @@
+[Unit]
+Description=NooHub SprutHub MQTT namespace proxy
+After=mosquitto.service noohub_spruthub_mosquitto.service network.target
+Wants=mosquitto.service noohub_spruthub_mosquitto.service
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/default/noohub_spruthub_mqtt_proxy
+ExecStart=/usr/local/bin/noohub_spruthub_mqtt_proxy.sh
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
