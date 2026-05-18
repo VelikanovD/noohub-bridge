@@ -108,6 +108,8 @@ var NOOHUB_COMMAND_POLL_PAUSE_MS = 5000;
 var NOOHUB_SET_STATE_POLLING_DELAY_MS = 700;
 var NOOHUB_SET_STATE_RETRY_DELAY_MS = 900;
 var NOOHUB_SET_STATE_MAX_ATTEMPTS = 3;
+var NOOHUB_STARTUP_RESET_DELAY_MS = 3000;
+var NOOHUB_STARTUP_RESET_STEP_MS = 500;
 var noohubScanBusy = false;
 var noohubScanBusyStartedAt = 0;
 var NOOHUB_SCAN_BUSY_TIMEOUT_MS = 120000;
@@ -844,6 +846,14 @@ function noohubIsCommandButtonDevice(d) {
     return false;
 }
 
+function noohubShouldUseSwitchCardForLocalState(d) {
+    return !!(d && d.id && d.retrievable !== true);
+}
+
+function noohubShouldUseOnButtonControl(d) {
+    return noohubIsCommandButtonDevice(d) && !noohubShouldUseSwitchCardForLocalState(d);
+}
+
 function noohubDeviceTextForTypeDetect(d) {
     if (!d) {
         return "";
@@ -892,7 +902,7 @@ function noohubGetControlsForDevice(d) {
     var skills = d.skills || [];
 
     if (noohubArrayContainsSkill(skills, "on")) {
-        if (noohubIsCommandButtonDevice(d)) {
+        if (noohubShouldUseOnButtonControl(d)) {
             controls.push("on_button");
         } else {
             controls.push("on");
@@ -952,7 +962,7 @@ function noohubGetControlsForDevice(d) {
     }
 
     if (controls.length === 0 && d.type === "block") {
-        controls.push(noohubIsCommandButtonDevice(d) ? "on_button" : "on");
+        controls.push(noohubShouldUseOnButtonControl(d) ? "on_button" : "on");
     }
 
     return noohubNormalizeControls(controls);
@@ -2129,6 +2139,123 @@ function noohubLoadDevicesFromFile(callback) {
     });
 }
 
+function noohubGetSavedDeviceById(id) {
+    if (!id) {
+        return null;
+    }
+
+    if (noohubDeviceById && noohubDeviceById[id]) {
+        return noohubDeviceById[id];
+    }
+
+    for (var i = 0; i < noohubDevices.length; i++) {
+        if (noohubDevices[i] && noohubDevices[i].id === id) {
+            return noohubDevices[i];
+        }
+    }
+
+    return null;
+}
+
+function noohubIsLocalStateDevice(d) {
+    return !!(d && d.id && d.retrievable !== true);
+}
+
+function noohubShouldStartupResetDevice(d) {
+    if (!noohubIsLocalStateDevice(d)) {
+        return false;
+    }
+
+    var controls = d.controls || noohubGetControlsForDevice(d);
+
+    if (controls.indexOf("on_button") >= 0 || controls.indexOf("pulse") >= 0) {
+        return false;
+    }
+
+    return controls.indexOf("on") >= 0;
+}
+
+function noohubApplyLocalStateFromCommand(id, state, statusText) {
+    var d = noohubGetSavedDeviceById(id);
+
+    if (!noohubIsLocalStateDevice(d)) {
+        return false;
+    }
+
+    var vd = "noohub_" + id;
+    var controls = d.controls || noohubGetControlsForDevice(d);
+
+    noohubSetUpdatingFromPoll(true);
+
+    try {
+        if (state && state.on !== undefined && controls.indexOf("on") >= 0 && dev[vd + "/on"] !== undefined) {
+            noohubSetDevIfChanged(vd + "/on", noohubMqttValueToOn(state.on) === 1);
+        }
+
+        if (state && state.brightness !== undefined && controls.indexOf("brightness") >= 0 && dev[vd + "/brightness"] !== undefined) {
+            var b = parseInt(state.brightness, 10);
+
+            if (isNaN(b)) {
+                b = 0;
+            }
+
+            if (b < 0) {
+                b = 0;
+            }
+
+            if (b > 100) {
+                b = 100;
+            }
+
+            noohubSetDevIfChanged(vd + "/brightness", b);
+        } else if (state && noohubMqttValueToOn(state.on) === 0 &&
+            controls.indexOf("brightness") >= 0 && dev[vd + "/brightness"] !== undefined) {
+            noohubSetDevIfChanged(vd + "/brightness", 0);
+        }
+
+        if (dev[vd + "/last_update"] !== undefined) {
+            dev[vd + "/last_update"] = noohubNowString();
+        }
+
+        if (dev[vd + "/status"] !== undefined) {
+            noohubSetDevIfChanged(vd + "/status", statusText || "local state");
+        }
+    } catch (e) {
+        noohubLog("local state update failed for " + id + ": " + e);
+    } finally {
+        noohubSetUpdatingFromPoll(false);
+    }
+
+    return true;
+}
+
+function noohubResetNonRetrievableDevicesOnStartup() {
+    var resetList = [];
+
+    for (var i = 0; i < noohubDevices.length; i++) {
+        if (noohubShouldStartupResetDevice(noohubDevices[i])) {
+            resetList.push(noohubDevices[i]);
+        }
+    }
+
+    if (resetList.length === 0) {
+        noohubLog("startup off reset: no non-retrievable switch devices");
+        return;
+    }
+
+    noohubSetStatus("startup off reset scheduled: " + resetList.length);
+
+    for (var n = 0; n < resetList.length; n++) {
+        (function(d, index) {
+            setTimeout(function() {
+                noohubLog("startup off reset for no-feedback device: " + d.id);
+                noohubApplyLocalStateFromCommand(d.id, { on: 0 }, "startup off");
+                noohubSendSetState(d.id, { on: 0 });
+            }, NOOHUB_STARTUP_RESET_DELAY_MS + index * NOOHUB_STARTUP_RESET_STEP_MS);
+        })(resetList[n], n);
+    }
+}
+
 
 // -----------------------------------------------------------------------------
 // Device card helpers
@@ -2675,6 +2802,10 @@ function noohubSendSetStateAttempt(id, state, attempt) {
         }
 
         if (resp && resp.success === true) {
+            if (noohubApplyLocalStateFromCommand(id, state, "sent, local")) {
+                return;
+            }
+
             if (dev[vd + "/last_update"] !== undefined) {
                 dev[vd + "/last_update"] = noohubNowString();
             }
@@ -4818,6 +4949,7 @@ noohubLoadSettings(function(ok) {
     noohubLoadDevicesFromFile(function(devicesOk) {
         if (devicesOk) {
             noohubSetStatus("started, devices restored");
+            noohubResetNonRetrievableDevicesOnStartup();
         } else {
             noohubSetStatus("started, no saved devices");
         }
